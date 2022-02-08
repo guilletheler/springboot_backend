@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.logging.Level;
 
 import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,29 +57,38 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
 
 	@ExceptionHandler(TransactionSystemException.class)
 	@ResponseStatus(HttpStatus.NOT_ACCEPTABLE)
-	public final ResponseEntity<?> handleValidationExceptions(TransactionSystemException ex,
+	public final ResponseEntity<?> handleTransacionSystemExceptions(TransactionSystemException ex,
 			WebRequest request) {
 
 		Throwable cause = ex;
 
 		while (cause.getCause() != null) {
 			cause = cause.getCause();
-		}
-
-		String message = "";
-
-		if(cause instanceof javax.validation.ConstraintViolationException) {
-			for(ConstraintViolation<?> constraintViolation : ((javax.validation.ConstraintViolationException) cause).getConstraintViolations()) {
-				if(!message.isEmpty()) {
-					message += ", ";
-				}
-				message += constraintViolation.getMessage();
+			if (cause instanceof ConstraintViolationException) {
+				return handleConstraintViolationExceptions((ConstraintViolationException) cause, request);
 			}
-		} else {
-			message = "ERROR AL GUARDAR ENTIDAD";
 		}
 
 		log.log(Level.SEVERE, "error al guardar entidad", ex);
+
+		return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body("ERROR DE TRANSACCION");
+	}
+
+	@ExceptionHandler(ConstraintViolationException.class)
+	@ResponseStatus(HttpStatus.NOT_ACCEPTABLE)
+	public final ResponseEntity<?> handleConstraintViolationExceptions(ConstraintViolationException ex,
+			WebRequest request) {
+
+		String message = "";
+
+		for (ConstraintViolation<?> constraintViolation : ex.getConstraintViolations()) {
+			if (!message.isEmpty()) {
+				message += ", ";
+			}
+			message += constraintViolation.getMessage();
+		}
+
+		log.log(Level.SEVERE, "error al guardar entidad " + message);
 
 		return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(message);
 	}
