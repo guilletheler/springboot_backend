@@ -257,18 +257,10 @@ public class UsuarioController {
     public @ResponseBody byte[] getExcelUserList(@RequestParam(required = false) Paginator paginator)
             throws IOException {
 
-        PageDto<UsuarioDto> ret = null;
-
         if (paginator != null) {
 
-            Page<Usuario> page = usuarioService.findByFilter(paginator.toFiltersMap(), paginator.toPageable());
-
-            ret = new PageDto<>(paginator.getFirst(), paginator.getRows(), page.getTotalElements(),
-                    page.getContent().stream().map(u -> toDto(u)).collect(Collectors.toList()));
-        } else {
-            List<UsuarioDto> elements = usuarioService.getRepo().findAll().stream().map(u -> toDto(u))
-                    .collect(Collectors.toList());
-            ret = new PageDto<>(0, elements.size(), (long) elements.size(), elements);
+            paginator.setFirst(0);
+            paginator.setRows(Integer.MAX_VALUE);
         }
 
         XlsxTableWriter writer = new XlsxTableWriter();
@@ -276,7 +268,7 @@ public class UsuarioController {
 
         writer.addLine(new String[] { "Id", "Codigo", "Nombre", "Username", "Roles" });
 
-        writer.addLines(ret.getElements().stream()
+        writer.addLines(getListaUsuarios(paginator).getBody().getElements().stream()
                 .map(u -> new Object[] { u.getId(), u.getCodigo(), u.getNombre(), u.getUsername(),
                         Arrays.asList(u.getRoles()).stream().map(UserRol::name).collect(Collectors.joining(", ")) })
                 .collect(Collectors.toList()));
