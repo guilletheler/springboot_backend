@@ -1,16 +1,18 @@
 package com.gt.backend.controller.admin;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gt.backend.components.JwtTokenUtil;
 import com.gt.backend.controller.exceptions.EntityNotFoundException;
 import com.gt.backend.dto.ListWrapper;
@@ -22,6 +24,7 @@ import com.gt.backend.primeng.PageDto;
 import com.gt.backend.primeng.Paginator;
 import com.gt.backend.service.auth.JwtUserDetailsService;
 import com.gt.backend.service.personal.UsuarioService;
+import com.gt.tablewriter.XlsxTableWriter;
 
 import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +47,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -245,6 +249,43 @@ public class UsuarioController {
         usuarioService.getRepo().delete(oUsuario.get());
 
         return ResponseEntity.ok(true);
+    }
+
+    @Operation(summary = "Obtiene un excel con la lista de usuarios", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping(value = "/exportList")
+    @PreAuthorize("hasRole('ADMIN')")
+    public @ResponseBody byte[] getExcelUserList(@RequestParam(required = false) Paginator paginator)
+            throws IOException {
+
+        PageDto<UsuarioDto> ret = null;
+
+        if (paginator != null) {
+
+            Page<Usuario> page = usuarioService.findByFilter(paginator.toFiltersMap(), paginator.toPageable());
+
+            ret = new PageDto<>(paginator.getFirst(), paginator.getRows(), page.getTotalElements(),
+                    page.getContent().stream().map(u -> toDto(u)).collect(Collectors.toList()));
+        } else {
+            List<UsuarioDto> elements = usuarioService.getRepo().findAll().stream().map(u -> toDto(u))
+                    .collect(Collectors.toList());
+            ret = new PageDto<>(0, elements.size(), (long) elements.size(), elements);
+        }
+
+        XlsxTableWriter writer = new XlsxTableWriter();
+        writer.open(new Properties());
+
+        writer.addLine(new String[] { "Id", "Codigo", "Nombre", "Username", "Roles" });
+
+        writer.addLines(ret.getElements().stream()
+                .map(u -> new Object[] { u.getId(), u.getCodigo(), u.getNombre(), u.getUsername(),
+                        Arrays.asList(u.getRoles()).stream().map(UserRol::name).collect(Collectors.joining(", ")) })
+                .collect(Collectors.toList()));
+
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        writer.writeTo(bos);
+        writer.close();
+
+        return bos.toByteArray();
     }
 
     /*

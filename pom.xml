@@ -125,6 +125,12 @@
 			<artifactId>springdoc-openapi-security</artifactId>
 			<version>${springdoc.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>com.gt.tablewriter</groupId>
+			<artifactId>tablewriter</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 
 	<build>
