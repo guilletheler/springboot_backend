@@ -29,6 +29,7 @@ import com.gt.tablewriter.XlsxTableWriter;
 import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -133,11 +134,17 @@ public class UsuarioController {
 
         if (paginator != null) {
 
-            Page<Usuario> page = usuarioService.findByFilter(paginator.toFiltersMap(), paginator.toPageable());
+            Pageable pageable = paginator.toPageable();
+
+            // Logger.getLogger(getClass().getName()).log(Level.INFO,
+            //         "Obteniendo lista de usuarios con paginador " + pageable);
+
+            Page<Usuario> page = usuarioService.findByFilter(paginator.toFiltersMap(), pageable);
 
             ret = new PageDto<>(paginator.getFirst(), paginator.getRows(), page.getTotalElements(),
                     page.getContent().stream().map(u -> toDto(u)).collect(Collectors.toList()));
         } else {
+            // Logger.getLogger(getClass().getName()).log(Level.INFO, "Obteniendo lista de usuarios sin paginador");
             List<UsuarioDto> elements = usuarioService.getRepo().findAll().stream().map(u -> toDto(u))
                     .collect(Collectors.toList());
             ret = new PageDto<>(0, elements.size(), (long) elements.size(), elements);
